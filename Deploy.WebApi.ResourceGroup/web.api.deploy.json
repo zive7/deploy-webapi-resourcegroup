@@ -1,0 +1,159 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "appServicePlanName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the App service plan"
+      },
+      "maxLength": 50
+    },
+    "appServicePlanPricingTier": {
+      "type": "string",
+      "metadata": {
+        "description": "App service plan pricing tier. Default is S1"
+      },
+      "allowedValues": [
+        "F1",
+        "D1",
+        "B1",
+        "B2",
+        "B3",
+        "S1",
+        "S2",
+        "S3",
+        "P1",
+        "P2",
+        "P3",
+        "P1V2",
+        "P2V2",
+        "P3V2"
+      ],
+      "defaultValue": "S1",
+      "maxLength": 4
+    },
+    "appServiceWebAppName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the web app"
+      },
+      "maxLength": 50
+    },
+    "appServiceWebAppSlotName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the web app slot, default name is staging"
+      },
+      "maxLength": 50,
+      "defaultValue": "staging"
+    },
+    "webAppDotNetVersion": {
+      "type": "string",
+      "metadata": {
+        "description": "The version used to run your web app if using the .NET Framework"
+      },
+      "allowedValues": [
+        "v4.7",
+        "v3.5"
+      ],
+      "defaultValue": "v4.7"
+    },
+    "webAppAlwaysOn": {
+      "type": "bool",
+      "metadata": {
+        "description": "Indicates that your web app needs to be loaded at all times. It is recommended that you enable this option when you have continuous WebJobs running on the web app."
+      },
+      "allowedValues": [
+        true,
+        false
+      ],
+      "defaultValue": true
+    }
+  },
+  "variables": {
+    "locationVar": "[resourceGroup().location]",
+    "appServicePlanNameVar": "[parameters('appServicePlanName')]",
+    "appServicePlanPricingTierVar": "[toUpper(parameters('appServicePlanPricingTier'))]",
+    "appServiceWebAppNameVar": "[parameters('appServiceWebAppName')]",
+    "appServiceWebAppSlotNameVar": "[parameters('appServiceWebAppSlotName')]"
+  },
+  "resources": [
+    {
+      "apiVersion": "2018-02-01",
+      "type": "Microsoft.Web/serverfarms",
+      "kind": "app",
+      "name": "[variables('appServicePlanNameVar')]",
+      "location": "[variables('locationVar')]",
+      "comments": "This app service plan is used for the web app and slots.",
+      "tags": {
+        "displayName": "AppServicePlan"
+      },
+      "properties": {},
+      "dependsOn": [],
+      "sku": {
+        "name": "[variables('appServicePlanPricingTierVar')]"
+      }
+    },
+    {
+      "apiVersion": "2018-02-01",
+      "type": "Microsoft.Web/sites",
+      "name": "[variables('appServiceWebAppNameVar')]",
+      "location": "[variables('locationVar')]",
+      "comments": "This is the web app, also the default 'nameless' slot.",
+      "tags": {
+        "displayName": "WebApp"
+      },
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanNameVar'))]",
+        "siteConfig": {
+          "netFrameworkVersion": "[parameters('webAppDotNetVersion')]",
+          "phpVersion": "Off",
+          "pythonVersion": "Off",
+          "remoteDebuggingEnabled": "Off",
+          "alwaysOn": "[parameters('webAppAlwaysOn')]",
+          "http20Enabled": true,
+          "webSocketsEnabled": true,
+          "use32BitWorkerProcess": false
+        },
+        "clientAffinityEnabled": false
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanNameVar'))]"
+      ]
+    },
+    {
+      "apiVersion": "2018-02-01",
+      "type": "Microsoft.Web/sites/slots",
+      "name": "[concat(variables('appServiceWebAppNameVar'), '/', variables('appServiceWebAppSlotNameVar'))]",
+      "location": "[variables('locationVar')]",
+      "comments": "This specifies the web app slot.",
+      "tags": {
+        "displayName": "WebAppSlot"
+      },
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanNameVar'))]",
+        "siteConfig": {
+          "netFrameworkVersion": "[parameters('webAppDotNetVersion')]",
+          "phpVersion": "Off",
+          "pythonVersion": "Off",
+          "remoteDebuggingEnabled": "Off",
+          "alwaysOn": "[parameters('webAppAlwaysOn')]",
+          "http20Enabled": true,
+          "webSocketsEnabled": true,
+          "use32BitWorkerProcess": false
+        },
+        "clientAffinityEnabled": false
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/Sites', variables('appServiceWebAppNameVar'))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "web_api_url": {
+      "type": "string",
+      "value": "[concat('https://',reference(resourceId('Microsoft.Web/sites', variables('appServiceWebAppNameVar')), '2018-02-01').defaultHostName)]"
+    }
+  }
+}
